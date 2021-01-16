@@ -697,6 +697,7 @@ func (e *IndexLookUpExecutor) Next(ctx context.Context, req *chunk.Chunk) error 
 			return err
 		}
 		e.workerStarted = true
+		close(e.resultCh)
 		return nil
 	}
 	if !e.workerStarted {
