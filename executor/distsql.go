@@ -401,7 +401,14 @@ type IndexLookUpExecutor struct {
 	// PushedLimit is used to skip the preceding and tailing handles when Limit is sunk into IndexLookUpReader.
 	PushedLimit *plannercore.PushedDownLimit
 
-	stats *IndexLookUpRunTimeStats
+	stats              *IndexLookUpRunTimeStats
+	OneShotIndexLookup *OneShotIndexLookup
+}
+
+type OneShotIndexLookup struct {
+	dagPB *tipb.DAGRequest
+	streaming bool
+	rows []chunk.Row
 }
 
 type getHandleType int8
@@ -504,6 +511,45 @@ func (e *IndexLookUpExecutor) getRetTpsByHandle() []*types.FieldType {
 		tps = e.idxColTps
 	}
 	return tps
+}
+
+func (e *IndexLookUpExecutor) startOneShotIndexWorker(ctx context.Context, kvRanges []kv.KeyRange, req *chunk.Chunk) error {
+	req.Reset()
+	if !e.workerStarted {
+		e.workerStarted = true
+		var builder distsql.RequestBuilder
+		kvReq, err := builder.SetKeyRanges(kvRanges).
+			SetDAGRequest(e.OneShotIndexLookup.dagPB).
+			SetStartTS(e.startTS).
+			SetDesc(e.desc).
+			SetKeepOrder(e.keepOrder).
+			SetStreaming(e.OneShotIndexLookup.streaming).
+			SetFromSessionVars(e.ctx.GetSessionVars()).
+			SetFromInfoSchema(infoschema.GetInfoSchema(e.ctx)).
+			Build()
+		if err != nil {
+			return err
+		}
+		result, err := distsql.SelectWithRuntimeStats(ctx, e.ctx, kvReq, retTypes(e), e.feedback,
+			getPhysicalPlanIDs(e.idxPlans), e.getIndexPlanRootID())
+		if err != nil {
+			return err
+		}
+		result.Fetch(ctx)
+		resultHandler := &tableResultHandler{}
+		resultHandler.open(nil, result)
+		chk := newFirstChunk(e)
+		iter := chunk.NewIterator4Chunk(chk)
+		for row := iter.Begin(); row != iter.End(); row = iter.Next() {
+			e.OneShotIndexLookup.rows = append(e.OneShotIndexLookup.rows, row)
+		}
+	}
+	count := req.RequiredRows() - req.NumRows()
+	for i := 0; i < count && len(e.OneShotIndexLookup.rows) > 0; i++ {
+		req.AppendRow(e.OneShotIndexLookup.rows[0])
+		e.OneShotIndexLookup.rows = e.OneShotIndexLookup.rows[1:]
+	}
+	return nil
 }
 
 // startIndexWorker launch a background goroutine to fetch handles, send the results to workCh.
@@ -645,6 +691,14 @@ func (e *IndexLookUpExecutor) Close() error {
 
 // Next implements Exec Next interface.
 func (e *IndexLookUpExecutor) Next(ctx context.Context, req *chunk.Chunk) error {
+	if e.OneShotIndexLookup != nil {
+		err := e.startOneShotIndexWorker(ctx, e.kvRanges, req)
+		if err != nil {
+			return err
+		}
+		e.workerStarted = true
+		return nil
+	}
 	if !e.workerStarted {
 		if err := e.startWorkers(ctx, req.RequiredRows()); err != nil {
 			return err

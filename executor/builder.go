@@ -2894,6 +2894,17 @@ func buildIndexReq(b *executorBuilder, schemaLen, handleLen int, plans []planner
 	return indexReq, indexStreaming, err
 }
 
+func buildOneShotIndexLookupReq(idxReq, tblReq *tipb.DAGRequest) *tipb.DAGRequest {
+	return &tipb.DAGRequest{
+		Executors: []*tipb.Executor{{
+			Tp: tipb.ExecType_TypeOneTripIndexLookup,
+			OneTripIdxLookup: &tipb.OneTripIndexLookup{
+				IdxScan:          idxReq,
+				TblScan:          tblReq,
+			}}},
+	}
+}
+
 func buildNoRangeIndexLookUpReader(b *executorBuilder, v *plannercore.PhysicalIndexLookUpReader) (*IndexLookUpExecutor, error) {
 	is := v.IndexPlans[0].(*plannercore.PhysicalIndexScan)
 	var handleLen int
@@ -2930,16 +2941,24 @@ func buildNoRangeIndexLookUpReader(b *executorBuilder, v *plannercore.PhysicalIn
 		tableRequest:      tableReq,
 		columns:           ts.Columns,
 		indexStreaming:    indexStreaming,
-		tableStreaming:    tableStreaming,
-		dataReaderBuilder: &dataReaderBuilder{executorBuilder: b},
-		corColInIdxSide:   b.corColInDistPlan(v.IndexPlans),
-		corColInTblSide:   b.corColInDistPlan(v.TablePlans),
-		corColInAccess:    b.corColInAccess(v.IndexPlans[0]),
-		idxCols:           is.IdxCols,
-		colLens:           is.IdxColLens,
-		idxPlans:          v.IndexPlans,
-		tblPlans:          v.TablePlans,
-		PushedLimit:       v.PushedLimit,
+		tableStreaming:        tableStreaming,
+		dataReaderBuilder:     &dataReaderBuilder{executorBuilder: b},
+		corColInIdxSide:       b.corColInDistPlan(v.IndexPlans),
+		corColInTblSide:       b.corColInDistPlan(v.TablePlans),
+		corColInAccess:        b.corColInAccess(v.IndexPlans[0]),
+		idxCols:               is.IdxCols,
+		colLens:               is.IdxColLens,
+		idxPlans:              v.IndexPlans,
+		tblPlans:              v.TablePlans,
+		PushedLimit:           v.PushedLimit,
+	}
+
+	if e.table.Meta().Name.String() == "t" {
+		oneShotReq := buildOneShotIndexLookupReq(indexReq, tableReq)
+		e.OneShotIndexLookup = &OneShotIndexLookup{
+			dagPB: oneShotReq,
+			streaming: false,
+		}
 	}
 
 	if containsLimit(indexReq.Executors) {
