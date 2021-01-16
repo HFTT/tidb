@@ -536,13 +536,16 @@ func (e *IndexLookUpExecutor) startOneShotIndexWorker(ctx context.Context, kvRan
 			return err
 		}
 		result.Fetch(ctx)
-		resultHandler := &tableResultHandler{}
-		resultHandler.open(nil, result)
 		chk := newFirstChunk(e)
+		err = result.Next(ctx, chk)
+		if err != nil {
+			return err
+		}
 		iter := chunk.NewIterator4Chunk(chk)
 		for row := iter.Begin(); row != iter.End(); row = iter.Next() {
 			e.OneShotIndexLookup.rows = append(e.OneShotIndexLookup.rows, row)
 		}
+		close(e.resultCh)
 	}
 	count := req.RequiredRows() - req.NumRows()
 	for i := 0; i < count && len(e.OneShotIndexLookup.rows) > 0; i++ {
@@ -692,13 +695,7 @@ func (e *IndexLookUpExecutor) Close() error {
 // Next implements Exec Next interface.
 func (e *IndexLookUpExecutor) Next(ctx context.Context, req *chunk.Chunk) error {
 	if e.OneShotIndexLookup != nil {
-		err := e.startOneShotIndexWorker(ctx, e.kvRanges, req)
-		if err != nil {
-			return err
-		}
-		e.workerStarted = true
-		close(e.resultCh)
-		return nil
+		return e.startOneShotIndexWorker(ctx, e.kvRanges, req)
 	}
 	if !e.workerStarted {
 		if err := e.startWorkers(ctx, req.RequiredRows()); err != nil {
