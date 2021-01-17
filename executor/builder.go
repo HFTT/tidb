@@ -2894,8 +2894,8 @@ func buildIndexReq(b *executorBuilder, schemaLen, handleLen int, plans []planner
 	return indexReq, indexStreaming, err
 }
 
-func buildOneShotIndexLookupReq(idxReq, tblReq *tipb.DAGRequest) *tipb.DAGRequest {
-	return &tipb.DAGRequest{
+func buildOneShotIndexLookupReq(ctx sessionctx.Context, idxReq, tblReq *tipb.DAGRequest) *tipb.DAGRequest {
+	dagReq := &tipb.DAGRequest{
 		Executors: []*tipb.Executor{{
 			Tp: tipb.ExecType_TypeOneTripIndexLookup,
 			OneTripIdxLookup: &tipb.OneTripIndexLookup{
@@ -2903,6 +2903,13 @@ func buildOneShotIndexLookupReq(idxReq, tblReq *tipb.DAGRequest) *tipb.DAGReques
 				TblScan:          tblReq,
 			}}},
 	}
+	dagReq.TimeZoneName, dagReq.TimeZoneOffset = timeutil.Zone(ctx.GetSessionVars().Location())
+	sc := ctx.GetSessionVars().StmtCtx
+	if sc.RuntimeStatsColl != nil {
+		collExec := true
+		dagReq.CollectExecutionSummaries = &collExec
+	}
+	return dagReq
 }
 
 func buildNoRangeIndexLookUpReader(b *executorBuilder, v *plannercore.PhysicalIndexLookUpReader) (*IndexLookUpExecutor, error) {
@@ -2954,7 +2961,7 @@ func buildNoRangeIndexLookUpReader(b *executorBuilder, v *plannercore.PhysicalIn
 	}
 
 	if e.table.Meta().Name.String() == "sbtest1" || e.table.Meta().Name.String() == "t" {
-		oneShotReq := buildOneShotIndexLookupReq(indexReq, tableReq)
+		oneShotReq := buildOneShotIndexLookupReq(e.ctx, indexReq, tableReq)
 		e.OneShotIndexLookup = &OneShotIndexLookup{
 			dagPB: oneShotReq,
 			streaming: false,
