@@ -88,3 +88,5 @@ require (
 go 1.13
 
 replace github.com/pingcap/tipb => github.com/HFTT/tipb v0.0.0-20210116084910-309139f20d15
+
+replace github.com/pingcap/parser => github.com/HFTT/parser v0.0.0-20210117010907-d552b20d53ff

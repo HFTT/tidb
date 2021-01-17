@@ -2960,7 +2960,8 @@ func buildNoRangeIndexLookUpReader(b *executorBuilder, v *plannercore.PhysicalIn
 		PushedLimit:           v.PushedLimit,
 	}
 
-	if e.table.Meta().Name.String() == "sbtest1" || e.table.Meta().Name.String() == "t" {
+	isLocalTable := e.table.Meta().IsLocalTable
+	if isLocalTable || e.table.Meta().Name.String() == "sbtest1" || e.table.Meta().Name.String() == "t" {
 		oneShotReq := buildOneShotIndexLookupReq(e.ctx, indexReq, tableReq)
 		e.OneShotIndexLookup = &OneShotIndexLookup{
 			dagPB: oneShotReq,

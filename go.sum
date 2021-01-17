@@ -36,6 +36,8 @@ github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q
 github.com/DATA-DOG/go-sqlmock v1.4.1/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/GeertJohan/go.incremental v1.0.0/go.mod h1:6fAjUhbVuX1KcMD3c8TEgVUqmo4seqhv0i0kdATSkM0=
 github.com/GeertJohan/go.rice v1.0.0/go.mod h1:eH6gbSOAUv07dQuZVnBmoDP8mgsM1rtixis4Tib9if0=
+github.com/HFTT/parser v0.0.0-20210117010907-d552b20d53ff h1:wCCiJjvwwBjMAoFvQHeasWbitvYhbnqjDbvMCtEEqbY=
+github.com/HFTT/parser v0.0.0-20210117010907-d552b20d53ff/go.mod h1:GbEr2PgY72/4XqPZzmzstlOU/+il/wrjeTNFs6ihsSE=
 github.com/HFTT/tipb v0.0.0-20210116084910-309139f20d15 h1:v5bp090HZHCDvxXknZ7xNMa7nlVWAEAz5AXLbx+FvLg=
 github.com/HFTT/tipb v0.0.0-20210116084910-309139f20d15/go.mod h1:aFaxHGK0Mecpi/tSplawgcSwcfM1/uondfgln26wtDY=
 github.com/HdrHistogram/hdrhistogram-go v0.9.0 h1:dpujRju0R4M/QZzcnR1LH1qm+TVG3UzkWdp5tH1WMcg=

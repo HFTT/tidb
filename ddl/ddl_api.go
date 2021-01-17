@@ -2159,6 +2159,8 @@ func handleTableOptions(options []*ast.TableOption, tbInfo *model.TableInfo) err
 			tbInfo.PreSplitRegions = op.UintValue
 		case ast.TableOptionCharset, ast.TableOptionCollate:
 			// We don't handle charset and collate here since they're handled in `getCharsetAndCollateInTableOption`.
+		case ast.TableOptionLocal:
+			tbInfo.IsLocalTable = true
 		}
 	}
 	shardingBits := shardingBits(tbInfo)
